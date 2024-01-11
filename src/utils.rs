@@ -14,20 +14,6 @@ pub fn buoyant_force(displaced_liquid_volume: f32) -> Vec3 {
     Vec3::Y * LIQUID_DENSITY * displaced_liquid_volume * GRAVITY
 }
 
-pub fn cross_section_area(radius: f32) -> f32 {
-    PI * radius.powi(2)
-}
-
-pub fn off_center_cross_section_area(radius: f32, distance_to_center: f32) -> f32 {
-    let abs_distance_to_center = distance_to_center.abs();
-    if abs_distance_to_center >= radius {
-        return 0.;
-    }
-
-    let cross_section_radius = (radius.powi(2) - abs_distance_to_center.powi(2)).sqrt();
-    cross_section_area(cross_section_radius)
-}
-
 pub fn volume(radius: f32) -> f32 {
     4. / 3. * PI * radius.powi(3)
 }

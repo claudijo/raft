@@ -4,8 +4,7 @@ use bevy_xpbd_3d::prelude::*;
 mod utils;
 
 use crate::utils::{
-    buoyant_force, cross_section_area, damping, displaced_liquid_volume,
-    off_center_cross_section_area, SPHERE_DRAG_COEFFICIENT,
+    buoyant_force, displaced_liquid_volume,
 };
 
 #[derive(Component)]
@@ -59,10 +58,7 @@ fn setup(
             RigidBody::Dynamic,
         ))
         .with_children(|child_builder| {
-            child_builder.spawn((
-                TransformBundle::default(),
-                Collider::cuboid(1.4, 0.6, 1.4),
-            ));
+            child_builder.spawn((TransformBundle::default(), Collider::cuboid(1.4, 0.6, 1.4)));
         })
         .id();
 
@@ -92,22 +88,8 @@ fn setup(
     }
 }
 
-fn float(
-    mut buoy_query: Query<
-        (
-            &GlobalTransform,
-            &Collider,
-            &mut ExternalForce,
-        ),
-        With<Buoy>,
-    >,
-) {
-    for (
-        buoy_global_transform,
-        collider,
-        mut external_force,
-    ) in &mut buoy_query
-    {
+fn float(mut buoy_query: Query<(&GlobalTransform, &Collider, &mut ExternalForce), With<Buoy>>) {
+    for (buoy_global_transform, collider, mut external_force) in &mut buoy_query {
         let translation = buoy_global_transform.translation();
         let water_height = 0.; //(elapsed_time + translation.x).sin();
         let radius = collider.shape().as_ball().unwrap().radius;

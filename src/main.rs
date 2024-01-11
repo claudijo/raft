@@ -11,28 +11,57 @@ use crate::utils::{
 #[derive(Component)]
 struct Buoy;
 
-fn setup(mut commands: Commands) {
+fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     // camera
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(20., 25., 15.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(20., 10., 45.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     });
 
-    let z_rotation = 0.1;
-    // let z_rotation = 0.;
+    // light
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            color: Color::rgb(0.98, 0.95, 0.82),
+            shadows_enabled: true,
+            ..default()
+        },
+        transform: Transform::from_xyz(0.0, 0.0, 0.0)
+            .with_rotation(Quat::from_rotation_x(-40_f32.to_radians())),
+        ..default()
+    });
+
+    // water
+    commands.spawn(PbrBundle {
+        mesh: meshes.add(shape::Circle::new(20.0).into()),
+        material: materials.add(Color::TURQUOISE.into()),
+        transform: Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+        ..default()
+    });
+
+    // No initial angular velocity will make the first contact with water be quite explosive, and subsequent contacts
+    // with water calm.
+    // Initial angular velocity will make contact with water calm.
+    // let z_rotation = 0.1;
+    let z_rotation = 0.;
 
     // Raft
-    let spawn_at = Vec3::new(0., 10., 0.);
+    let spawn_at = Vec3::new(0., 5., 0.);
     let raft_entity = commands
         .spawn((
-            TransformBundle::from_transform(Transform::from_translation(spawn_at).with_rotation(Quat::from_rotation_z(z_rotation))),
+            TransformBundle::from_transform(
+                Transform::from_translation(spawn_at)
+                    .with_rotation(Quat::from_rotation_z(z_rotation)),
+            ),
             RigidBody::Dynamic,
         ))
         .with_children(|child_builder| {
             child_builder.spawn((
                 TransformBundle::default(),
                 Collider::cuboid(1.4, 0.6, 1.4),
-                ColliderDensity(1.),
             ));
         })
         .id();
@@ -53,9 +82,6 @@ fn setup(mut commands: Commands) {
                 TransformBundle::from_transform(Transform::from_translation(spawn_at + position)),
                 Collider::ball(0.5),
                 RigidBody::Dynamic,
-                LinearDamping::default(),
-                AngularDamping::default(),
-                ExternalForce::default(),
                 ColliderDensity(0.2),
                 CollisionLayers::none(),
                 Buoy,
@@ -70,57 +96,25 @@ fn float(
     mut buoy_query: Query<
         (
             &GlobalTransform,
-            &LinearVelocity,
             &Collider,
             &mut ExternalForce,
-            &mut LinearDamping,
-            &mut AngularDamping,
         ),
         With<Buoy>,
     >,
-    time: Res<Time>,
 ) {
-    let elapsed_time = time.elapsed().as_secs_f32();
-
     for (
         buoy_global_transform,
-        linear_velocity,
         collider,
         mut external_force,
-        mut linear_damping,
-        mut angular_damping,
     ) in &mut buoy_query
     {
         let translation = buoy_global_transform.translation();
-        let water_height = (elapsed_time + translation.x).sin();
+        let water_height = 0.; //(elapsed_time + translation.x).sin();
         let radius = collider.shape().as_ball().unwrap().radius;
         let displaced_liquid_volume = displaced_liquid_volume(radius, translation.y, water_height);
         let buoyant_force = buoyant_force(displaced_liquid_volume);
-        let submerged = (translation.y - water_height) - radius;
-
-        let damping_coefficient;
-        if submerged >= 0. {
-            // Not submerged
-            damping_coefficient = 0.;
-        } else if submerged < -radius {
-            // At least half submerged
-            damping_coefficient = damping(
-                linear_velocity.length(),
-                cross_section_area(radius),
-                SPHERE_DRAG_COEFFICIENT,
-            );
-        } else {
-            // Less than half submerged
-            damping_coefficient = damping(
-                linear_velocity.length(),
-                off_center_cross_section_area(radius, radius + submerged),
-                SPHERE_DRAG_COEFFICIENT,
-            );
-        }
 
         external_force.set_force(buoyant_force);
-        linear_damping.0 = damping_coefficient;
-        angular_damping.0 = damping_coefficient;
     }
 }
 
